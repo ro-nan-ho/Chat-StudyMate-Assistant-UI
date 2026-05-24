@@ -16,6 +16,10 @@ import {
   Bookmark,
   ArrowUpRight,
   Hash,
+  Clock,
+  Target,
+  Sparkles,
+  History,
 } from "lucide-react";
 
 type Citation = {
@@ -25,6 +29,8 @@ type Citation = {
   excerpt: string;
   score: number;
   tone: "primary" | "accent" | "secondary" | "peach";
+  chunkId?: string;
+  distance?: number;
 };
 
 type Message = {
@@ -37,21 +43,19 @@ type Message = {
   citations?: Citation[];
   outOfScope?: boolean;
   tokens?: number;
+  processingTime?: number;
+  chunksRetrieved?: number;
+  similarityRange?: string;
+  modelUsed?: string;
+  stages?: {
+    embedding: { completed: boolean; duration: number };
+    searching: { completed: boolean; duration: number; chunksFound: number };
+    generating: { completed: boolean; duration: number };
+  };
+  errorType?: "API timeout" | "No relevant chunks found" | "Rate limit exceeded";
+  errorMessage?: string;
+  searchChapter?: string;
 };
-
-const quickQuestions = [
-  { q: "Tóm tắt chương 1", tag: "Ch.01" },
-  { q: "UML là gì?", tag: "Ch.04" },
-  { q: "So sánh use case và class diagram", tag: "Ch.04" },
-  { q: "Giải thích kiến trúc phần mềm", tag: "Ch.05" },
-  { q: "Lấy ví dụ từ tài liệu", tag: "All" },
-];
-
-const recentSessions = [
-  { id: "1", title: "Chương 3 — Phân tích yêu cầu", time: "2 giờ", msgs: 14, active: true },
-  { id: "2", title: "MVC vs MVVM khác nhau ra sao?", time: "Hôm qua", msgs: 22 },
-  { id: "3", title: "Tóm tắt kiến trúc microservices", time: "2 ngày", msgs: 9 },
-];
 
 const seedMessages: Message[] = [
   {
@@ -66,6 +70,10 @@ const seedMessages: Message[] = [
     content: "",
     time: "14:32",
     tokens: 312,
+    processingTime: 2.8,
+    chunksRetrieved: 4,
+    similarityRange: "0.81-0.92",
+    modelUsed: "Gemini 1.5 Flash",
     summary:
       "UML (Unified Modeling Language) là ngôn ngữ mô hình hoá trực quan tiêu chuẩn dùng để mô tả, đặc tả và tài liệu hoá các thành phần của hệ thống phần mềm.",
     bullets: [
@@ -82,6 +90,8 @@ const seedMessages: Message[] = [
           "UML là ngôn ngữ mô hình hoá thống nhất, cung cấp ký pháp đồ hoạ để biểu diễn các khía cạnh của hệ thống phần mềm…",
         score: 0.92,
         tone: "primary",
+        chunkId: "chunk_089",
+        distance: 0.12,
       },
       {
         doc: "Slide bài giảng W04.pptx",
@@ -91,6 +101,8 @@ const seedMessages: Message[] = [
           "Các loại sơ đồ UML phổ biến gồm 13 loại, chia thành hai nhóm: cấu trúc và hành vi.",
         score: 0.81,
         tone: "accent",
+        chunkId: "chunk_142",
+        distance: 0.23,
       },
     ],
   },
@@ -100,11 +112,66 @@ export function ChatView() {
   const [messages, setMessages] = useState<Message[]>(seedMessages);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [ragStage, setRagStage] = useState<"embedding" | "searching" | "generating" | "citing" | null>(null);
+  const [ragProgress, setRagProgress] = useState(0);
+  const [chunksFound, setChunksFound] = useState(0);
+  const [selectedChapter, setSelectedChapter] = useState<string>("all");
   const endRef = useRef<HTMLDivElement>(null);
+
+  const chapterOptions = [
+    { value: "all", label: "Tất cả chương" },
+    { value: "ch1", label: "Chương 1" },
+    { value: "ch2", label: "Chương 2" },
+    { value: "ch3", label: "Chương 3" },
+    { value: "ch4", label: "Chương 4" },
+    { value: "ch5", label: "Chương 5" },
+  ];
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  const simulateRAGPipeline = () => {
+    setRagStage("embedding");
+    setRagProgress(0);
+
+    const embeddingInterval = setInterval(() => {
+      setRagProgress((prev) => {
+        if (prev >= 25) {
+          clearInterval(embeddingInterval);
+          setRagStage("searching");
+          setChunksFound(0);
+
+          const searchingInterval = setInterval(() => {
+            setChunksFound((prev) => {
+              if (prev >= 5) {
+                clearInterval(searchingInterval);
+                setRagStage("generating");
+                setRagProgress(50);
+
+                const generatingInterval = setInterval(() => {
+                  setRagProgress((prev) => {
+                    if (prev >= 90) {
+                      clearInterval(generatingInterval);
+                      setRagStage("citing");
+
+                      setTimeout(() => {
+                        setRagStage(null);
+                        setRagProgress(100);
+                      }, 300);
+                    }
+                    return prev + 10;
+                  });
+                }, 200);
+              }
+              return prev + 1;
+            });
+          }, 150);
+        }
+        return prev + 5;
+      });
+    }, 100);
+  };
 
   function send(text: string) {
     if (!text.trim()) return;
@@ -113,6 +180,7 @@ export function ChatView() {
     setMessages((m) => [...m, userMsg]);
     setInput("");
     setLoading(true);
+    simulateRAGPipeline();
 
     setTimeout(() => {
       const lower = text.toLowerCase();
@@ -125,6 +193,11 @@ export function ChatView() {
             content: "",
             time: now,
             tokens: 184,
+            processingTime: 3.8,
+            chunksRetrieved: 5,
+            similarityRange: "0.82-0.95",
+            modelUsed: "Gemini 1.5 Flash",
+            searchChapter: selectedChapter === "all" ? undefined : chapterOptions.find((c) => c.value === selectedChapter)?.label,
             summary:
               "Dưới đây là tổng hợp ngắn gọn dựa trên các tài liệu đã được index trong môn học.",
             bullets: [
@@ -141,103 +214,23 @@ export function ChatView() {
                   "Phần này trình bày chi tiết khái niệm liên quan và ngữ cảnh áp dụng trong quy trình phát triển phần mềm…",
                 score: 0.88,
                 tone: "secondary",
+                chunkId: "chunk_142",
+                distance: 0.18,
               },
             ],
           };
       setMessages((m) => [...m, bot]);
       setLoading(false);
-    }, 900);
+      setRagStage(null);
+      setRagProgress(0);
+      setChunksFound(0);
+    }, 3800);
   }
 
   return (
-    <div className="grid h-[calc(100vh-3.5rem)] grid-cols-1 lg:grid-cols-[280px_1fr]">
-      {/* Left panel */}
-      <aside className="scrollbar-thin hidden overflow-y-auto border-r border-border bg-background/40 lg:flex lg:flex-col">
-        {/* Session group */}
-        <div className="px-5 pt-6">
-          <div className="flex items-baseline justify-between">
-            <h3 className="text-base text-foreground">Phiên gần đây</h3>
-            <button className="text-[11px] text-muted-foreground hover:text-foreground">
-              Xem tất cả →
-            </button>
-          </div>
-        </div>
-        <div className="mt-3 flex flex-col gap-1.5 px-3">
-          {recentSessions.map((s) => (
-            <button
-              key={s.id}
-              className={`group relative flex flex-col items-start gap-1 rounded-2xl border px-3.5 py-3 text-left transition-all ${
-                s.active
-                  ? "border-primary/30 bg-card shadow-soft"
-                  : "border-transparent hover:border-border hover:bg-card/60"
-              }`}
-            >
-              {s.active && (
-                <span className="absolute right-3 top-3 flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-secondary opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-secondary" />
-                </span>
-              )}
-              <span className="line-clamp-1 text-[13px] font-medium text-foreground">
-                {s.title}
-              </span>
-              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                <span className="tabular-nums">{s.time}</span>
-                <span className="h-0.5 w-0.5 rounded-full bg-muted-foreground/50" />
-                <span>{s.msgs} tin nhắn</span>
-              </div>
-            </button>
-          ))}
-        </div>
-
-        {/* Quick prompts */}
-        <div className="mt-7 px-5">
-          <h3 className="text-base text-foreground">Gợi ý câu hỏi</h3>
-        </div>
-        <div className="mt-3 flex flex-col gap-1.5 px-3 pb-6">
-          {quickQuestions.map((q) => (
-            <button
-              key={q.q}
-              onClick={() => send(q.q)}
-              className="group flex items-center gap-2 rounded-xl border border-transparent px-2.5 py-2 text-left text-xs hover:border-border hover:bg-card"
-            >
-              <span className="rounded-md bg-muted px-1.5 py-0.5 tabular-nums text-[9px] text-muted-foreground group-hover:bg-primary-soft group-hover:text-primary-deep">
-                {q.tag}
-              </span>
-              <span className="line-clamp-1 flex-1 text-foreground/85">{q.q}</span>
-              <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-            </button>
-          ))}
-        </div>
-
-        {/* Stats card */}
-        <div className="mt-auto px-4 pb-5">
-          <div className="rounded-2xl border border-dashed border-border p-3.5">
-            <div className="flex items-center justify-between text-[10px] tabular-nums uppercase tracking-wider text-muted-foreground">
-              <span>Hôm nay</span>
-              <span>22.05</span>
-            </div>
-            <div className="mt-2 flex items-end justify-between">
-              <div>
-                <div className="text-2xl text-foreground">14</div>
-                <div className="text-[10px] text-muted-foreground">câu đã hỏi</div>
-              </div>
-              <div className="flex items-end gap-0.5">
-                {[3, 5, 2, 7, 4, 6, 8].map((h, i) => (
-                  <span
-                    key={i}
-                    className="w-1.5 rounded-sm bg-primary/70"
-                    style={{ height: `${h * 3}px` }}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </aside>
-
+    <div className="flex h-[calc(100vh-3.5rem)]">
       {/* Chat column */}
-      <section className="flex min-h-0 flex-col">
+      <section className="flex min-h-0 flex-1 flex-col">
         <div className="scrollbar-thin flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-3xl px-6 py-8">
             {/* Hero header */}
@@ -267,6 +260,22 @@ export function ChatView() {
                     <span className="font-medium text-foreground">Kỹ thuật Phần mềm</span>. Mỗi câu
                     trả lời đều kèm trích dẫn rõ ràng.
                   </p>
+                  {messages.length > 2 && (
+                    <div className="mt-3 flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 rounded-full bg-card px-2.5 py-1 shadow-soft">
+                        <History className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-[10px] text-muted-foreground">
+                          Context from {Math.min(messages.length - 1, 5)} messages
+                        </span>
+                        <button
+                          className="ml-1 text-[10px] text-primary hover:underline"
+                          onClick={() => setMessages([seedMessages[0]])}
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -277,7 +286,7 @@ export function ChatView() {
                   {m.role === "user" ? <UserBubble m={m} /> : <BotBubble message={m} />}
                 </div>
               ))}
-              {loading && <TypingIndicator />}
+              {loading && <TypingIndicator ragStage={ragStage} ragProgress={ragProgress} chunksFound={chunksFound} />}
               <div ref={endRef} />
             </div>
           </div>
@@ -286,17 +295,19 @@ export function ChatView() {
         {/* Composer */}
         <div className="border-t border-border bg-gradient-to-b from-background/60 to-background px-6 py-4 backdrop-blur">
           <div className="mx-auto w-full max-w-3xl">
-            <div className="marquee-fade mb-3 flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
-              {quickQuestions.map((q) => (
-                <button
-                  key={q.q}
-                  onClick={() => send(q.q)}
-                  className="group flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground hover:border-primary/40 hover:bg-primary-soft hover:text-foreground"
-                >
-                  <Hash className="h-3 w-3 text-muted-foreground group-hover:text-primary" />
-                  {q.q}
-                </button>
-              ))}
+            <div className="mb-3 flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Tìm kiếm từ:</span>
+              <select
+                value={selectedChapter}
+                onChange={(e) => setSelectedChapter(e.target.value)}
+                className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+              >
+                {chapterOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <form
               onSubmit={(e) => {
@@ -324,12 +335,6 @@ export function ChatView() {
                 placeholder="Hỏi điều gì đó về tài liệu môn học…"
                 className="max-h-40 flex-1 resize-none bg-transparent px-1 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
               />
-              <button
-                type="button"
-                className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
-                <Mic className="h-4 w-4" />
-              </button>
               <button
                 type="submit"
                 disabled={!input.trim()}
@@ -393,10 +398,55 @@ function BotBubble({ message }: { message: Message }) {
           <span className="font-semibold text-foreground/70">StudyMate</span>
           <span>·</span>
           <span>{message.time}</span>
+          {message.searchChapter && (
+            <>
+              <span>·</span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-1.5 py-0.5 text-accent-foreground">
+                <BookOpen className="h-2.5 w-2.5" />
+                {message.searchChapter}
+              </span>
+            </>
+          )}
           {message.tokens && (
             <>
               <span>·</span>
               <span>{message.tokens} tokens</span>
+            </>
+          )}
+          {message.processingTime && (
+            <>
+              <span>·</span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-muted-foreground">
+                <Clock className="h-2.5 w-2.5" />
+                {message.processingTime}s
+              </span>
+            </>
+          )}
+          {message.chunksRetrieved && (
+            <>
+              <span>·</span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-muted-foreground">
+                <Hash className="h-2.5 w-2.5" />
+                {message.chunksRetrieved} chunks
+              </span>
+            </>
+          )}
+          {message.similarityRange && (
+            <>
+              <span>·</span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-muted-foreground">
+                <Target className="h-2.5 w-2.5" />
+                {message.similarityRange}
+              </span>
+            </>
+          )}
+          {message.modelUsed && (
+            <>
+              <span>·</span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary-soft px-1.5 py-0.5 text-primary-deep">
+                <Sparkles className="h-2.5 w-2.5" />
+                {message.modelUsed}
+              </span>
             </>
           )}
           {message.citations && (
@@ -411,7 +461,29 @@ function BotBubble({ message }: { message: Message }) {
         </div>
 
         <div className="relative rounded-2xl rounded-tl-md border border-border bg-card p-5 shadow-soft">
-          {message.outOfScope ? (
+          {message.errorType ? (
+            <div className="flex gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-destructive/20">
+                <AlertCircle className="h-4.5 w-4.5 text-destructive-foreground" />
+              </div>
+              <div className="flex-1">
+                <p className="text-base font-medium text-foreground">{message.errorType}</p>
+                <p className="mt-1.5 text-sm text-muted-foreground">
+                  {message.errorMessage || "Có lỗi xảy ra khi xử lý yêu cầu của bạn."}
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <button className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90">
+                    <RefreshCw className="h-3 w-3" />
+                    Thử lại
+                  </button>
+                  <button className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted">
+                    <AlertCircle className="h-3 w-3" />
+                    Báo cáo vấn đề
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : message.outOfScope ? (
             <div className="flex gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-warning/30">
                 <AlertCircle className="h-4.5 w-4.5 text-warning-foreground" />
@@ -524,6 +596,22 @@ function CitationCard({ c, index }: { c: Citation; index: number }) {
           ))}
         </div>
       </div>
+      {(c.chunkId || c.distance !== undefined) && (
+        <div className="mt-2 flex items-center gap-2 text-[9px] text-muted-foreground">
+          {c.chunkId && (
+            <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5">
+              <Hash className="h-2 w-2" />
+              {c.chunkId}
+            </span>
+          )}
+          {c.distance !== undefined && (
+            <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5">
+              <Target className="h-2 w-2" />
+              dist: {c.distance.toFixed(2)}
+            </span>
+          )}
+        </div>
+      )}
     </a>
   );
 }
@@ -537,20 +625,64 @@ function ActionBtn({ icon: Icon, label }: { icon: typeof Copy; label: string }) 
   );
 }
 
-function TypingIndicator() {
+function TypingIndicator({ ragStage, ragProgress, chunksFound }: { ragStage: "embedding" | "searching" | "generating" | "citing" | null; ragProgress: number; chunksFound: number }) {
+  const stages = [
+    { key: "embedding", label: "Embedding", icon: "🔄" },
+    { key: "searching", label: "Searching", icon: "🔍" },
+    { key: "generating", label: "Generating", icon: "✨" },
+    { key: "citing", label: "Citing", icon: "📚" },
+  ];
+
+  const currentStageIndex = stages.findIndex((s) => s.key === ragStage);
+
   return (
     <div className="flex gap-3">
       <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-accent to-secondary text-primary-foreground">
         <GraduationCap className="h-3.5 w-3.5 animate-pulse" />
       </div>
       <div className="rounded-2xl rounded-tl-md border border-border bg-card px-4 py-3 shadow-soft">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" />
-            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent [animation-delay:-0.15s]" />
-            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-secondary" />
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent [animation-delay:-0.15s]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-secondary" />
+            </div>
+            <span className="tabular-nums text-[10px]">
+              {ragStage === "embedding" && "Converting question to vector..."}
+              {ragStage === "searching" && `Searching 248 chunks... Found ${chunksFound}`}
+              {ragStage === "generating" && "Generating response with Gemini..."}
+              {ragStage === "citing" && "Extracting citations..."}
+            </span>
           </div>
-          <span className="tabular-nums text-[10px]">tra cứu 248 chunks…</span>
+          <div className="flex items-center gap-2">
+            {stages.map((stage, index) => (
+              <div key={stage.key} className="flex items-center gap-1.5">
+                <div
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    index < currentStageIndex
+                      ? "bg-primary"
+                      : index === currentStageIndex
+                      ? "bg-primary animate-pulse"
+                      : "bg-muted"
+                  }`}
+                />
+                <span
+                  className={`text-[10px] ${
+                    index <= currentStageIndex ? "text-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  {stage.label}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-300"
+              style={{ width: `${ragProgress}%` }}
+            />
+          </div>
         </div>
       </div>
     </div>
