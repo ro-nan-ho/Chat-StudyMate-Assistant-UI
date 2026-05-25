@@ -14,12 +14,23 @@ import {
   BookMarked,
   Search,
   ChevronDown,
+  BookOpen,
+  LogIn,
+  LogOut,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { useAuth } from "@/hooks/use-auth";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const nav = [
   { to: "/", label: "Chat", icon: MessageSquareText, end: true, badge: "12" },
   { to: "/documents", label: "Tài liệu", icon: FileText, badge: "12" },
+  { to: "/practice", label: "Luyện Tập", icon: BookOpen, badge: "Mới" },
   { to: "/sessions", label: "Phiên hội thoại", icon: History, badge: "6" },
   { to: "/evaluation", label: "Evaluation", icon: GaugeCircle, badge: "50" },
   { to: "/settings", label: "Cài đặt", icon: Settings },
@@ -78,6 +89,7 @@ function SidebarItem({
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const { signOut } = useAuth();
 
   return (
     <div className="flex min-h-screen w-full">
@@ -223,14 +235,24 @@ export function AppLayout({ children }: { children: ReactNode }) {
               </span>
               <span className="whitespace-nowrap">Phiên mới</span>
             </Link>
-            <div className="ml-1 flex h-9 items-center gap-2 rounded-full border border-border bg-card pl-1 pr-1 lg:pr-3.5">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-accent to-primary text-[10px] font-semibold text-primary-foreground">
-                MA
-              </div>
-              <span className="hidden whitespace-nowrap text-[13px] font-medium text-foreground lg:inline">
-                Minh An
-              </span>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="ml-1 flex h-9 items-center gap-2 rounded-full border border-border bg-card pl-1 pr-1 lg:pr-3.5 outline-none hover:bg-card/80 transition-colors">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-accent to-primary text-[10px] font-semibold text-primary-foreground">
+                    MA
+                  </div>
+                  <span className="hidden whitespace-nowrap text-[13px] font-medium text-foreground lg:inline">
+                    Minh An
+                  </span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => signOut()} className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Đăng xuất</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
