@@ -10,8 +10,16 @@ import {
   Loader2,
   AlertTriangle,
   Layers,
+  Trash2,
+  Calendar,
 } from "lucide-react";
 import { useState, useRef } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type DocStatus = "uploading" | "parsing" | "chunking" | "embedding" | "indexed" | "error";
 
@@ -21,6 +29,7 @@ type Document = {
   chapter: string;
   type: string;
   date: string;
+  updatedDate: string;
   status: DocStatus;
   progress: number;
   currentStage: string;
@@ -32,13 +41,14 @@ type Document = {
   fileSize: string;
 };
 
-const docs: Document[] = [
+export const docs: Document[] = [
   {
     id: "1",
     name: "Giáo trình KTPM.pdf",
     chapter: "Chương 2.1",
     type: "PDF",
     date: "12/03/2025",
+    updatedDate: "12/03/2025",
     status: "indexed",
     progress: 100,
     currentStage: "indexed",
@@ -54,6 +64,7 @@ const docs: Document[] = [
     chapter: "Chương 2.2",
     type: "PPTX",
     date: "18/03/2025",
+    updatedDate: "18/03/2025",
     status: "indexed",
     progress: 100,
     currentStage: "indexed",
@@ -69,6 +80,7 @@ const docs: Document[] = [
     chapter: "Chương 3.1",
     type: "DOCX",
     date: "21/03/2025",
+    updatedDate: "21/03/2025",
     status: "embedding",
     progress: 75,
     currentStage: "embedding",
@@ -84,6 +96,7 @@ const docs: Document[] = [
     chapter: "Chương 3.2",
     type: "PDF",
     date: "22/03/2025",
+    updatedDate: "22/03/2025",
     status: "chunking",
     progress: 50,
     currentStage: "chunking",
@@ -99,6 +112,7 @@ const docs: Document[] = [
     chapter: "Chương 4.1",
     type: "PDF",
     date: "25/03/2025",
+    updatedDate: "25/03/2025",
     status: "error",
     progress: 0,
     currentStage: "uploading",
@@ -115,6 +129,7 @@ const docs: Document[] = [
     chapter: "Chương 5.1",
     type: "PPTX",
     date: "26/03/2025",
+    updatedDate: "26/03/2025",
     status: "indexed",
     progress: 100,
     currentStage: "indexed",
@@ -198,21 +213,21 @@ export function DocumentsView() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStage, setUploadStage] = useState<string>("");
   const [selectedChapter, setSelectedChapter] = useState<string>("");
+  const [selectedSubChapter, setSelectedSubChapter] = useState<string>("");
+  const [documents, setDocuments] = useState<Document[]>(docs);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const chapterOptions = [
-    "Chương 1.1",
-    "Chương 1.2",
-    "Chương 2.1",
-    "Chương 2.2",
-    "Chương 2.3",
-    "Chương 3.1",
-    "Chương 3.2",
-    "Chương 4.1",
-    "Chương 4.2",
-    "Chương 5.1",
-    "Chương 5.2",
-  ];
+  const handleDelete = (id: string) => {
+    setDocuments((prev) => prev.filter((d) => d.id !== id));
+  };
+
+  const handleUpdateDate = (id: string) => {
+    const today = new Date();
+    const formattedDate = `${today.getDate().toString().padStart(2, "0")}/${(today.getMonth() + 1).toString().padStart(2, "0")}/${today.getFullYear()}`;
+    setDocuments((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, updatedDate: formattedDate } : d))
+    );
+  };
 
   const simulateUpload = (file: File) => {
     setIsUploading(true);
@@ -232,6 +247,8 @@ export function DocumentsView() {
                 setUploadStage("indexed");
                 setIsUploading(false);
                 setSelectedFile(null);
+                setSelectedChapter("");
+                setSelectedSubChapter("");
               }, 4000);
             }, 3000);
           }, 1000);
@@ -267,7 +284,7 @@ export function DocumentsView() {
   };
 
   const handleStartUpload = () => {
-    if (selectedFile) {
+    if (selectedFile && selectedChapter && selectedSubChapter) {
       simulateUpload(selectedFile);
     }
   };
@@ -317,20 +334,33 @@ export function DocumentsView() {
                 </p>
               </div>
               {!isUploading && (
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-foreground">Chọn chương:</label>
-                  <select
-                    value={selectedChapter}
-                    onChange={(e) => setSelectedChapter(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  >
-                    <option value="">-- Chọn chương --</option>
-                    {chapterOptions.map((chapter) => (
-                      <option key={chapter} value={chapter}>
-                        {chapter}
-                      </option>
-                    ))}
-                  </select>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-foreground">Chương:</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={selectedChapter}
+                        onChange={(e) => setSelectedChapter(e.target.value)}
+                        placeholder="1"
+                        className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-foreground">Chương con:</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={selectedSubChapter}
+                        onChange={(e) => setSelectedSubChapter(e.target.value)}
+                        placeholder="1"
+                        className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
               {isUploading ? (
@@ -356,7 +386,7 @@ export function DocumentsView() {
                 <div className="flex gap-2">
                   <button
                     onClick={handleStartUpload}
-                    disabled={!selectedChapter}
+                    disabled={!selectedChapter || !selectedSubChapter}
                     className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-soft hover:opacity-90 disabled:opacity-40 disabled:shadow-none"
                   >
                     <UploadCloud className="h-4 w-4" />
@@ -398,25 +428,25 @@ export function DocumentsView() {
           {[
             {
               label: "Upload",
-              value: docs.filter((d) => d.status === "uploading" || d.status === "parsing").length,
+              value: documents.filter((d) => d.status === "uploading" || d.status === "parsing").length,
               icon: UploadCloud,
               tone: "primary",
             },
             {
               label: "Chunking",
-              value: docs.filter((d) => d.status === "chunking").length,
+              value: documents.filter((d) => d.status === "chunking").length,
               icon: Layers,
               tone: "accent",
             },
             {
               label: "Embedding",
-              value: docs.filter((d) => d.status === "embedding").length,
+              value: documents.filter((d) => d.status === "embedding").length,
               icon: Loader2,
               tone: "primary",
             },
             {
               label: "Đã index",
-              value: docs.filter((d) => d.status === "indexed").length,
+              value: documents.filter((d) => d.status === "indexed").length,
               icon: CheckCircle2,
               tone: "secondary",
             },
@@ -470,14 +500,14 @@ export function DocumentsView() {
                 <th className="px-5 py-3 font-medium">Tài liệu</th>
                 <th className="px-3 py-3 font-medium">Chương</th>
                 <th className="px-3 py-3 font-medium">Định dạng</th>
-                <th className="px-3 py-3 font-medium">Ngày</th>
-                <th className="px-3 py-3 font-medium">Chunk / Emb</th>
+                <th className="px-3 py-3 font-medium">Ngày đăng</th>
+                <th className="px-3 py-3 font-medium">Ngày cập nhật</th>
                 <th className="px-3 py-3 font-medium">Trạng thái</th>
                 <th className="px-3 py-3" />
               </tr>
             </thead>
             <tbody>
-              {docs.map((d) => {
+              {documents.map((d) => {
                 const s = statusConfig[d.status];
                 const Icon = s.icon;
                 return (
@@ -500,38 +530,7 @@ export function DocumentsView() {
                       </span>
                     </td>
                     <td className="px-3 py-3.5 text-muted-foreground">{d.date}</td>
-                    <td className="px-3 py-3.5 text-muted-foreground">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-xs">
-                          <span>Chunks:</span>
-                          <span className="tabular-nums font-medium text-foreground">
-                            {d.chunks}/{d.totalChunks}
-                          </span>
-                        </div>
-                        {d.status === "chunking" && d.totalChunks > 0 && (
-                          <div className="h-1 w-full max-w-16 overflow-hidden rounded-full bg-muted">
-                            <div
-                              className="h-full rounded-full bg-accent-foreground"
-                              style={{ width: `${(d.chunks / d.totalChunks) * 100}%` }}
-                            />
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2 text-xs">
-                          <span>Emb:</span>
-                          <span className="tabular-nums font-medium text-foreground">
-                            {d.embeddings}/{d.totalEmbeddings}
-                          </span>
-                        </div>
-                        {d.status === "embedding" && d.totalEmbeddings > 0 && (
-                          <div className="h-1 w-full max-w-16 overflow-hidden rounded-full bg-muted">
-                            <div
-                              className="h-full rounded-full bg-primary"
-                              style={{ width: `${(d.embeddings / d.totalEmbeddings) * 100}%` }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </td>
+                    <td className="px-3 py-3.5 text-muted-foreground">{d.updatedDate}</td>
                     <td className="px-3 py-3.5">
                       <div className="space-y-1">
                         <span
@@ -560,6 +559,7 @@ export function DocumentsView() {
                               <Loader2 className="h-3.5 w-3.5" />
                             </button>
                             <button
+                              onClick={() => handleDelete(d.id)}
                               className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/20 hover:text-destructive-foreground"
                               title="Xóa"
                             >
@@ -567,9 +567,23 @@ export function DocumentsView() {
                             </button>
                           </>
                         )}
-                        <button className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleUpdateDate(d.id)}>
+                              <Calendar className="mr-2 h-4 w-4" />
+                              Cập nhật ngày
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDelete(d.id)} className="text-destructive">
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Xóa
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </td>
                   </tr>

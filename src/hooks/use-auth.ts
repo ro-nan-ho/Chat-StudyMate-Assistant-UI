@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -21,6 +21,30 @@ export function useAuth() {
   const [isLoading, setIsLoading] = useState(false);
 
   const [session, setSession] = useState<{ user: any; role: UserRole } | null>(null);
+
+  // Restore session from cookies on mount
+  useEffect(() => {
+    const getCookie = (name: string) => {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop()?.split(';').shift();
+      return null;
+    };
+
+    const authCookie = getCookie("mock_auth");
+    const roleCookie = getCookie("mock_role") as UserRole | null;
+
+    if (authCookie && roleCookie) {
+      setSession({
+        user: {
+          id: "1",
+          email: "minhan@studymate.vn",
+          name: "Minh An",
+        },
+        role: roleCookie,
+      });
+    }
+  }, []);
 
 
 
@@ -68,12 +92,13 @@ export function useAuth() {
 
         setIsLoading(false);
 
-        // Simulate redirect to dashboard or practice page
-
+        // Redirect based on role
         setTimeout(() => {
-
-          router.push("/");
-
+          if (role === "teacher") {
+            router.push("/documents");
+          } else {
+            router.push("/");
+          }
         }, 500);
 
         return { success: true };

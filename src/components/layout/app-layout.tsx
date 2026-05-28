@@ -56,13 +56,13 @@ import {
 
 const nav = [
 
-  { to: "/", label: "Chat", icon: MessageSquareText, end: true, badge: "12" },
+  { to: "/", label: "Chat", icon: MessageSquareText, end: true, badge: "12", roles: ["student"] },
 
   { to: "/documents", label: "Tài liệu", icon: FileText, badge: "12" },
 
-  { to: "/practice", label: "Luyện Tập", icon: BookOpen, badge: "Mới" },
+  { to: "/practice", label: "Tạo Quiz", labelTeacher: "Tạo bài kiểm tra", icon: BookOpen, badge: "Mới" },
 
-  { to: "/sessions", label: "Phiên hội thoại", icon: History, badge: "6" },
+  { to: "/sessions", label: "Phiên hội thoại", icon: History, badge: "6", roles: ["student"] },
 
   { to: "/settings", label: "Cài đặt", icon: Settings },
 
@@ -92,17 +92,22 @@ function SidebarItem({
 
   label,
 
+  labelTeacher,
+
   icon: Icon,
 
   active,
 
   badge,
 
+  session,
 }: {
 
   to: string;
 
   label: string;
+
+  labelTeacher?: string;
 
   icon: typeof MessageSquareText;
 
@@ -110,7 +115,10 @@ function SidebarItem({
 
   badge?: string;
 
+  session?: { user: any; role: string } | null;
 }) {
+
+  const displayLabel = session?.role !== "student" && labelTeacher ? labelTeacher : label;
 
   return (
 
@@ -176,7 +184,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
   const pathname = usePathname();
 
-  const { signOut } = useAuth();
+  const { signOut, session } = useAuth();
 
 
 
@@ -252,7 +260,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
         <nav className="flex flex-col gap-0.5 px-3">
 
-          {nav.map((n) => (
+          {nav
+            .filter((n) => !n.roles || n.roles.includes(session?.role || "student"))
+            .map((n) => (
 
             <SidebarItem
 
@@ -262,11 +272,15 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
               label={n.label}
 
+              labelTeacher={n.labelTeacher}
+
               icon={n.icon}
 
               badge={n.badge}
 
               active={n.end ? pathname === n.to : pathname.startsWith(n.to)}
+
+              session={session}
 
             />
 
@@ -462,11 +476,21 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
                   </div>
 
-                  <span className="hidden whitespace-nowrap text-[13px] font-medium text-foreground lg:inline">
+                  <div className="hidden flex-col items-start lg:flex">
 
-                    Minh An
+                    <span className="whitespace-nowrap text-[13px] font-medium text-foreground">
 
-                  </span>
+                      Minh An
+
+                    </span>
+
+                    <span className="text-[10px] text-muted-foreground">
+
+                      {session?.role === "teacher" ? "Giảng viên" : session?.role === "admin" ? "Quản trị viên" : "Học sinh"}
+
+                    </span>
+
+                  </div>
 
                 </button>
 

@@ -9,7 +9,9 @@ import {
   Loader2,
   AlertTriangle,
   Lock,
+  Download,
 } from "lucide-react";
+import { docs as teacherDocs } from "./teacher-documents-view";
 
 type DocStatus = "uploading" | "parsing" | "chunking" | "embedding" | "indexed" | "error";
 
@@ -19,6 +21,7 @@ type Document = {
   chapter: string;
   type: string;
   date: string;
+  updatedDate: string;
   status: DocStatus;
   progress: number;
   currentStage: string;
@@ -30,99 +33,17 @@ type Document = {
   fileSize: string;
 };
 
-const docs: Document[] = [
-  {
-    id: "1",
-    name: "Giáo trình KTPM.pdf",
-    chapter: "Chương 2.1",
-    type: "PDF",
-    date: "12/03/2025",
-    status: "indexed",
-    progress: 100,
-    currentStage: "indexed",
-    chunks: 124,
-    totalChunks: 124,
-    embeddings: 124,
-    totalEmbeddings: 124,
-    fileSize: "15.2 MB",
-  },
-  {
-    id: "2",
-    name: "Slide bài giảng W04.pptx",
-    chapter: "Chương 2.2",
-    type: "PPTX",
-    date: "18/03/2025",
-    status: "indexed",
-    progress: 100,
-    currentStage: "indexed",
-    chunks: 32,
-    totalChunks: 32,
-    embeddings: 32,
-    totalEmbeddings: 32,
-    fileSize: "8.5 MB",
-  },
-  {
-    id: "3",
-    name: "Bài tập nhóm UML.docx",
-    chapter: "Chương 3.1",
-    type: "DOCX",
-    date: "21/03/2025",
-    status: "embedding",
-    progress: 75,
-    currentStage: "embedding",
-    chunks: 18,
-    totalChunks: 18,
-    embeddings: 12,
-    totalEmbeddings: 18,
-    fileSize: "2.1 MB",
-  },
-  {
-    id: "4",
-    name: "Tham khảo Microservices.pdf",
-    chapter: "Chương 3.2",
-    type: "PDF",
-    date: "22/03/2025",
-    status: "chunking",
-    progress: 50,
-    currentStage: "chunking",
-    chunks: 12,
-    totalChunks: 24,
-    embeddings: 0,
-    totalEmbeddings: 24,
-    fileSize: "5.8 MB",
-  },
-  {
-    id: "5",
-    name: "Đề kiểm tra giữa kỳ.pdf",
-    chapter: "Chương 4.1",
-    type: "PDF",
-    date: "25/03/2025",
-    status: "error",
-    progress: 0,
-    currentStage: "uploading",
-    chunks: 0,
-    totalChunks: 0,
-    embeddings: 0,
-    totalEmbeddings: 0,
-    fileSize: "3.2 MB",
-    errorMessage: "File corrupted: unable to parse PDF structure",
-  },
-  {
-    id: "6",
-    name: "Slide W05 — Kiến trúc.pptx",
-    chapter: "Chương 5.1",
-    type: "PPTX",
-    date: "26/03/2025",
-    status: "indexed",
-    progress: 100,
-    currentStage: "indexed",
-    chunks: 28,
-    totalChunks: 28,
-    embeddings: 28,
-    totalEmbeddings: 28,
-    fileSize: "7.3 MB",
-  },
-];
+const docs: Document[] = teacherDocs;
+
+// Group documents by chapter
+const groupedDocs = docs.reduce((acc, doc) => {
+  const chapter = doc.chapter;
+  if (!acc[chapter]) {
+    acc[chapter] = [];
+  }
+  acc[chapter].push(doc);
+  return acc;
+}, {} as Record<string, Document[]>);
 
 const statusConfig: Record<DocStatus, { label: string; class: string; icon: typeof CheckCircle2 }> =
   {
@@ -190,6 +111,11 @@ function ProgressBar({ progress, label, color = "primary" }: { progress: number;
 }
 
 export function StudentDocumentsView() {
+  const handleDownloadChapter = (chapter: string) => {
+    console.log(`Downloading all documents for ${chapter}`);
+    // In a real implementation, this would trigger a download of all documents in the chapter
+  };
+
   return (
     <div className="scrollbar-thin h-[calc(100vh-3.5rem)] overflow-y-auto">
       <div className="mx-auto max-w-6xl px-6 py-8">
@@ -206,52 +132,67 @@ export function StudentDocumentsView() {
           />
         </div>
 
-        {/* Table */}
-        <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/40 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                <th className="px-5 py-3 font-medium">Tài liệu</th>
-                <th className="px-3 py-3 font-medium">Chương</th>
-                <th className="px-3 py-3 font-medium">Định dạng</th>
-                <th className="px-3 py-3 font-medium">Ngày đăng</th>
-                <th className="px-3 py-3 font-medium">Ngày cập nhật</th>
-                <th className="px-3 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {docs.map((d) => (
-                <tr
-                  key={d.id}
-                  className="border-b border-border/60 last:border-0 hover:bg-muted/40"
+        {/* Grouped by chapter */}
+        <div className="mt-4 space-y-4">
+          {Object.entries(groupedDocs).map(([chapter, chapterDocs]) => (
+            <div key={chapter} className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+              {/* Chapter header with download button */}
+              <div className="flex items-center justify-between border-b border-border bg-muted/40 px-5 py-3">
+                <h2 className="text-sm font-semibold text-foreground">{chapter}</h2>
+                <button
+                  onClick={() => handleDownloadChapter(chapter)}
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary-soft"
                 >
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-soft text-primary">
-                        <FileText className="h-4 w-4" />
-                      </div>
-                      <span className="font-medium text-foreground">{d.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-3 py-3.5 text-muted-foreground">{d.chapter}</td>
-                  <td className="px-3 py-3.5">
-                    <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                      {d.type}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3.5 text-muted-foreground">{d.date}</td>
-                  <td className="px-3 py-3.5 text-muted-foreground">{d.date}</td>
-                  <td className="px-3 py-3.5 text-right">
-                    <div className="flex items-center gap-1">
-                      <button className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  <Download className="h-3.5 w-3.5" />
+                  Tải xuống
+                </button>
+              </div>
+
+              {/* Documents table for this chapter */}
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/60 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                    <th className="px-5 py-3 font-medium">Tài liệu</th>
+                    <th className="px-3 py-3 font-medium">Định dạng</th>
+                    <th className="px-3 py-3 font-medium">Ngày đăng</th>
+                    <th className="px-3 py-3 font-medium">Ngày cập nhật</th>
+                    <th className="px-3 py-3" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {chapterDocs.map((d) => (
+                    <tr
+                      key={d.id}
+                      className="border-b border-border/60 last:border-0 hover:bg-muted/40"
+                    >
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-soft text-primary">
+                            <FileText className="h-4 w-4" />
+                          </div>
+                          <span className="font-medium text-foreground">{d.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3.5">
+                        <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                          {d.type}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3.5 text-muted-foreground">{d.date}</td>
+                      <td className="px-3 py-3.5 text-muted-foreground">{d.updatedDate}</td>
+                      <td className="px-3 py-3.5 text-right">
+                        <div className="flex items-center gap-1">
+                          <button className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
         </div>
       </div>
     </div>

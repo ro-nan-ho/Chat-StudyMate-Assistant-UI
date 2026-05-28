@@ -116,6 +116,7 @@ export function ChatView() {
   const [ragProgress, setRagProgress] = useState(0);
   const [chunksFound, setChunksFound] = useState(0);
   const [selectedChapter, setSelectedChapter] = useState<string>("all");
+  const [selectedSubChapter, setSelectedSubChapter] = useState<string>("");
   const endRef = useRef<HTMLDivElement>(null);
 
   const chapterOptions = [
@@ -126,6 +127,10 @@ export function ChatView() {
     { value: "ch4", label: "Chương 4" },
     { value: "ch5", label: "Chương 5" },
   ];
+
+  const subChapterOptions = selectedChapter && selectedChapter !== "all"
+    ? Array.from({ length: 5 }, (_, i) => (i + 1).toString())
+    : [];
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -197,7 +202,11 @@ export function ChatView() {
             chunksRetrieved: 5,
             similarityRange: "0.82-0.95",
             modelUsed: "Gemini 1.5 Flash",
-            searchChapter: selectedChapter === "all" ? undefined : chapterOptions.find((c) => c.value === selectedChapter)?.label,
+            searchChapter: selectedChapter === "all"
+              ? undefined
+              : selectedSubChapter
+                ? `${chapterOptions.find((c) => c.value === selectedChapter)?.label}.${selectedSubChapter}`
+                : chapterOptions.find((c) => c.value === selectedChapter)?.label,
             summary:
               "Dưới đây là tổng hợp ngắn gọn dựa trên các tài liệu đã được index trong môn học.",
             bullets: [
@@ -299,7 +308,10 @@ export function ChatView() {
               <span className="text-xs text-muted-foreground">Tìm kiếm từ:</span>
               <select
                 value={selectedChapter}
-                onChange={(e) => setSelectedChapter(e.target.value)}
+                onChange={(e) => {
+                  setSelectedChapter(e.target.value);
+                  setSelectedSubChapter("");
+                }}
                 className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
               >
                 {chapterOptions.map((option) => (
@@ -308,6 +320,20 @@ export function ChatView() {
                   </option>
                 ))}
               </select>
+              {selectedChapter && selectedChapter !== "all" && (
+                <select
+                  value={selectedSubChapter}
+                  onChange={(e) => setSelectedSubChapter(e.target.value)}
+                  className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
+                  <option value="">-- Chọn chương con --</option>
+                  {subChapterOptions.map((subChapter) => (
+                    <option key={subChapter} value={subChapter}>
+                      {subChapter}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
             <form
               onSubmit={(e) => {
