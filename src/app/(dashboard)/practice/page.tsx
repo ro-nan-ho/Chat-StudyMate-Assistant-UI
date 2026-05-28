@@ -21,8 +21,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { StudentPracticeView } from "@/components/features/student-practice-view";
+import { useAuth } from "@/hooks/use-auth";
 
-export default function PracticePage() {
+function TeacherPracticePage() {
   const router = useRouter();
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedChapter, setSelectedChapter] = useState("");
@@ -138,4 +140,11 @@ export default function PracticePage() {
       </div>
     </div>
   );
+}
+
+export default function PracticePage() {
+  const { session } = useAuth();
+  const userRole = session?.role || "student";
+
+  return userRole === "student" ? <StudentPracticeView /> : <TeacherPracticePage />;
 }

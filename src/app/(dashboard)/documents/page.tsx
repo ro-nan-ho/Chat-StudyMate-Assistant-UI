@@ -1,12 +1,12 @@
-import type { Metadata } from "next";
+"use client";
 
-import { DocumentsView } from "@/components/features/documents-view";
-
-export const metadata: Metadata = {
-  title: "Tài liệu",
-  description: "Quản lý và index tài liệu môn học.",
-};
+import { StudentDocumentsView } from "@/components/features/student-documents-view";
+import { DocumentsView } from "@/components/features/teacher-documents-view";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function Page() {
-  return <DocumentsView />;
+  const { session } = useAuth();
+  const userRole = session?.role || "student";
+
+  return userRole === "student" ? <StudentDocumentsView /> : <DocumentsView />;
 }
